@@ -9,6 +9,7 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth'
 import { auth } from 'src/firebase'
+import { navigate, routes } from '@redwoodjs/router' // ✅ ADD THIS
 
 const AuthContext = createContext()
 
@@ -22,7 +23,7 @@ export const AuthProvider = ({ children }) => {
       setFirebaseUser(firebaseUser)
       if (firebaseUser) {
         try {
-          // Fetch user data from your backend
+          // Determine API base URL
           const API_BASE = process.env.NODE_ENV === 'production'
             ? 'https://poolypays.netlify.app/.redwood/functions'
             : '/.redwood/functions'
@@ -33,16 +34,17 @@ export const AuthProvider = ({ children }) => {
 
           // Redirect based on payment status
           if (data.hasPaid) {
-            navigate('/')
+            navigate(routes.home())
           } else {
-            navigate('/plan-selection')
+            navigate(routes.planSelection())
           }
         } catch (error) {
           console.error('Failed to fetch user from DB', error)
+          // Optionally redirect to an error page or retry
         }
       } else {
         setDbUser(null)
-        navigate('/login')
+        navigate(routes.login())
       }
       setLoading(false)
     })
