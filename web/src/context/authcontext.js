@@ -21,33 +21,41 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser)
-      if (firebaseUser) {
-        try {
-          // Determine API base URL
-          const API_BASE = process.env.NODE_ENV === 'production'
-            ? 'https://poolypays.netlify.app/.redwood/functions'
-            : '/.redwood/functions'
+      setLoading(true)
 
-          const res = await fetch(`${API_BASE}/getUser?uid=${firebaseUser.uid}&email=${firebaseUser.email}`)
-          const data = await res.json()
-          setDbUser(data)
-
-          // Redirect based on payment status
-          if (data.hasPaid) {
-            navigate(routes.home())
-          } else {
-            navigate(routes.planSelection())
-          }
-        } catch (error) {
-          console.error('Failed to fetch user from DB', error)
-          // Optionally redirect to an error page or retry
-        }
-      } else {
+      if (!firebaseUser) {
         setDbUser(null)
         navigate(routes.login())
+        setLoading(false)
+        return
       }
-      setLoading(false)
+
+      try {
+        // ✅ Netlify functions URL for production
+        const API_BASE = process.env.NODE_ENV === 'production'
+          ? 'https://poolypays.netlify.app/.netlify/functions'
+          : '/.redwood/functions'
+
+        const res = await fetch(`${API_BASE}/getUser?uid=${firebaseUser.uid}&email=${firebaseUser.email}`)
+        if (!res.ok) throw new Error('User not found')
+        const data = await res.json()
+        setDbUser(data)
+
+        // Redirect based on payment status
+        if (data.hasPaid === true) {
+          navigate(routes.home())
+        } else {
+          navigate(routes.planSelection())
+        }
+
+      } catch (error) {
+        console.error('Failed to fetch user from DB', error)
+        navigate(routes.login())
+      } finally {
+        setLoading(false)
+      }
     })
+
     return unsubscribe
   }, [])
 
