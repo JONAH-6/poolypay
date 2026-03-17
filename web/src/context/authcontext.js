@@ -18,18 +18,31 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user)
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setFirebaseUser(firebaseUser)
+      if (firebaseUser) {
         try {
-          const res = await fetch(`/.redwood/functions/getUser?uid=${user.uid}&email=${user.email}`)
+          // Fetch user data from your backend
+          const API_BASE = process.env.NODE_ENV === 'production'
+            ? 'https://poolypays.netlify.app/.redwood/functions'
+            : '/.redwood/functions'
+
+          const res = await fetch(`${API_BASE}/getUser?uid=${firebaseUser.uid}&email=${firebaseUser.email}`)
           const data = await res.json()
           setDbUser(data)
+
+          // Redirect based on payment status
+          if (data.hasPaid) {
+            navigate('/')
+          } else {
+            navigate('/plan-selection')
+          }
         } catch (error) {
           console.error('Failed to fetch user from DB', error)
         }
       } else {
         setDbUser(null)
+        navigate('/login')
       }
       setLoading(false)
     })
