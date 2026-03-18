@@ -1,4 +1,7 @@
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[build]
+  command = "yarn rw deploy netlify"
+  publish = "web/dist"
+  functions = "api/dist/functions"
+
+[dev]
+  command = "yarn rw dev"
