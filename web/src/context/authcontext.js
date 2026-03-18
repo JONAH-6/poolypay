@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [dbUser, setDbUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // web/src/context/authcontext.js
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser)
@@ -25,31 +26,38 @@ export const AuthProvider = ({ children }) => {
 
       if (!firebaseUser) {
         setDbUser(null)
-        navigate(routes.login())
         setLoading(false)
+        navigate(routes.login())
         return
       }
 
       try {
-        // ✅ Netlify functions URL for production
-        const API_BASE = process.env.NODE_ENV === 'production'
-          ? 'https://poolypays.netlify.app/.netlify/functions'
-          : '/.redwood/functions'
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? '/.redwood/functions'
+          : '/.netlify/functions'
 
-        const res = await fetch(`${API_BASE}/getUser?uid=${firebaseUser.uid}&email=${firebaseUser.email}`)
-        if (!res.ok) throw new Error('User not found')
-        const data = await res.json()
-        setDbUser(data)
+        const res = await fetch(
+          `${API_BASE}/getUser?uid=${firebaseUser.uid}&email=${encodeURIComponent(firebaseUser.email)}`
+        )
 
-        // Redirect based on payment status
-        if (data.hasPaid === true) {
+        if (!res.ok) throw new Error('Failed to fetch user')
+
+        const raw = await res.json()
+
+        // ✅ THE KEY FIX: Lambda returns data inside `body` as a JSON string
+        const userData = raw
+
+        console.log('userData:', userData) // ← keep this during testing
+        setDbUser(userData)
+
+        if (userData.hasPaid === true) {
           navigate(routes.home())
         } else {
           navigate(routes.planSelection())
         }
 
       } catch (error) {
-        console.error('Failed to fetch user from DB', error)
+        console.error('Failed to fetch user from DB:', error)
         navigate(routes.login())
       } finally {
         setLoading(false)
@@ -58,7 +66,6 @@ export const AuthProvider = ({ children }) => {
 
     return unsubscribe
   }, [])
-
   const googleSignIn = async () => {
     const provider = new GoogleAuthProvider()
     await signInWithPopup(auth, provider)

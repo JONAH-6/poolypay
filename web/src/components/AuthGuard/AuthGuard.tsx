@@ -3,34 +3,26 @@ import { useEffect } from 'react'
 import { useLocation, navigate, routes } from '@redwoodjs/router'
 
 import { useAuth } from 'src/context/authcontext'
-
+// web/src/components/AuthGuard/AuthGuard.tsx
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, dbUser, loading } = useAuth()
   const location = useLocation()
 
   useEffect(() => {
     if (loading) return
-
     if (!user) {
       navigate(routes.login())
       return
     }
 
-    // If user is logged in but hasn't paid, redirect to plan selection
-    if (
-      dbUser &&
-      !dbUser.hasPaid &&
-      location.pathname !== routes.planSelection()
-    ) {
+    // ✅ Only act when dbUser is fully loaded and has the right shape
+    if (!dbUser || typeof dbUser.hasPaid === 'undefined') return
+
+    if (!dbUser.hasPaid && location.pathname !== routes.planSelection()) {
       navigate(routes.planSelection())
     }
 
-    // If user has paid and is on plan selection, redirect to home
-    if (
-      dbUser &&
-      dbUser.hasPaid &&
-      location.pathname === routes.planSelection()
-    ) {
+    if (dbUser.hasPaid && location.pathname === routes.planSelection()) {
       navigate(routes.home())
     }
   }, [user, dbUser, loading, location.pathname])
@@ -43,9 +35,13 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     )
   }
 
+  // ✅ Don't block render while dbUser is still being fetched
+  if (!user) return null
+
   if (
-    !user ||
-    (dbUser && !dbUser.hasPaid && location.pathname !== routes.planSelection())
+    dbUser &&
+    !dbUser.hasPaid &&
+    location.pathname !== routes.planSelection()
   ) {
     return null
   }
